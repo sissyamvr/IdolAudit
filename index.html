@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Managing the Satisfaction Equation - Interactive Workshop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #0F172A;
+            --accent: #38BDF8;
+            --slate-100: #F1F5F9;
+            --slate-200: #E2E8F0;
+            --slate-800: #1E293B;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--slate-200);
+            color: var(--slate-800);
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3 { font-family: 'Poppins', sans-serif; }
+
+        .slide {
+            display: none;
+            width: 100vw;
+            min-height: 100vh;
+            padding: 40px;
+            background: white;
+            position: relative;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ai-panel {
+            background: var(--slate-100);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--slate-200);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .loading-spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid #fff;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .nav-controls {
+            position: fixed;
+            bottom: 30px;
+            right: 40px;
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .nav-btn {
+            background: var(--primary);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 5px;
+            background: var(--accent);
+            transition: width 0.3s;
+            z-index: 1000;
+        }
+
+        .math-box {
+            font-size: clamp(2.2rem, 4vw, 4rem);
+            font-weight: 700;
+            color: var(--primary);
+            text-align: center;
+            margin: 2rem 0;
+            line-height: 1.2;
+        }
+
+        .ai-result {
+            white-space: pre-wrap;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--slate-800);
+        }
+
+        .api-key-bar {
+            position: fixed;
+            top: 14px;
+            right: 18px;
+            z-index: 1200;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 999px;
+            padding: 8px 12px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+        }
+
+        .api-key-bar input {
+            width: 180px;
+            max-width: 30vw;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: white;
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+
+        .api-key-bar input::placeholder { color: rgba(255,255,255,0.5); }
+
+        .api-key-bar button {
+            background: #38BDF8;
+            color: #0F172A;
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+        @media (max-width: 768px) {
+            .slide { padding: 24px 18px 80px; }
+            .api-key-bar {
+                left: 18px;
+                right: 18px;
+                justify-content: space-between;
+            }
+            .api-key-bar input { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="api-key-bar">
+        <input id="api-key-input" type="password" placeholder="Gemini API key" aria-label="Gemini API key" />
+        <button id="save-key-btn" type="button">Save</button>
+    </div>
+
+    <div id="progress" class="progress-bar" style="width: 0%"></div>
+
+    <section class="slide active bg-slate-900 text-white" id="slide-1">
+        <div class="m-auto text-center max-w-4xl">
+            <h1 class="text-6xl font-bold mb-6">The Satisfaction Equation</h1>
+            <p class="text-2xl text-sky-400 mb-12">Interactive AI-Powered Workshop Tool</p>
+            <div class="grid grid-cols-3 gap-6 text-left">
+                <div class="p-6 border border-slate-700 rounded-xl">
+                    <i class="fa-solid fa-wand-magic-sparkles text-sky-400 text-2xl mb-4"></i>
+                    <h3 class="font-bold mb-2">Audit Assistant</h3>
+                    <p class="text-sm text-slate-400">Differentiate between intrinsic values and "False Idols."</p>
+                </div>
+                <div class="p-6 border border-slate-700 rounded-xl">
+                    <i class="fa-solid fa-anchor text-sky-400 text-2xl mb-4"></i>
+                    <h3 class="font-bold mb-2">Reframing Engine</h3>
+                    <p class="text-sm text-slate-400">Pre-accept failure to strip outcomes of their power.</p>
+                </div>
+                <div class="p-6 border border-slate-700 rounded-xl">
+                    <i class="fa-solid fa-brain text-sky-400 text-2xl mb-4"></i>
+                    <h3 class="font-bold mb-2">Metacognition Guide</h3>
+                    <p class="text-sm text-slate-400">Decode your brain's cravings during the silence.</p>
+                </div>
+            </div>
+            <button onclick="nextSlide()" class="mt-12 text-sky-400 animate-bounce cursor-pointer">
+                Scroll or use arrows to start <br /> <i class="fa-solid fa-chevron-down mt-2"></i>
+            </button>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-2">
+        <div class="max-w-5xl m-auto text-center">
+            <h2 class="text-4xl font-bold mb-8 border-l-8 border-sky-400 pl-6 text-left">The Math of Happiness</h2>
+            <div class="math-box">
+                Satisfaction = <span class="text-slate-400">Have</span> / <span class="text-sky-500">Want</span>
+            </div>
+            <p class="text-xl text-slate-600 mb-12">
+                We spend our lives trying to grow the numerator. This tool focuses on mastering the <strong>denominator</strong>.
+            </p>
+            <div class="bg-slate-50 p-10 rounded-3xl border border-slate-200">
+                <h3 class="text-2xl font-bold mb-4">Why AI?</h3>
+                <p class="text-slate-600 leading-relaxed">
+                    The denominator is driven by biological cravings, social conditioning, and fear. Gemini acts as your objective "Observer," helping you spot the tricks your brain plays to keep you on the treadmill.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 h-full items-center">
+            <div>
+                <h2 class="text-4xl font-bold mb-6 border-l-8 border-sky-400 pl-6">1. The Audience Audit</h2>
+                <p class="text-lg text-slate-600 mb-6">
+                    Identify if your goals are <strong>Intrinsic</strong> (meaningful to you) or <strong>Extrinsic</strong> (chasing admiration).
+                </p>
+                <div class="space-y-4">
+                    <div class="flex items-start gap-4">
+                        <span class="bg-sky-100 text-sky-600 w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold">1</span>
+                        <p>Input a major goal or "want" currently on your plate.</p>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <span class="bg-sky-100 text-sky-600 w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center font-bold">2</span>
+                        <p>The AI will play the "Invisible Question" and audit the source of the craving.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="ai-panel">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-sky-500"></i> Audit Assistant
+                </h3>
+                <textarea id="audit-input" class="w-full p-4 rounded-lg border border-slate-300 mb-4 h-32 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g., I want to get promoted to Senior Director this year..."></textarea>
+                <button onclick="runAudit()" id="audit-btn" class="btn-primary w-full justify-center">
+                    Analyze Goal
+                </button>
+                <div id="audit-result" class="mt-6 p-4 bg-white rounded-lg border border-slate-200 hidden ai-result"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 h-full items-center">
+            <div>
+                <h2 class="text-4xl font-bold mb-6 border-l-8 border-sky-400 pl-6">2. The "Even-If" Protocol</h2>
+                <p class="text-lg text-slate-600 mb-6">
+                    Outcome-based success is fragile. Character-based success is anti-fragile.
+                </p>
+                <div class="ai-panel bg-white border-2 border-dashed border-sky-300 mb-6">
+                    <p class="italic text-slate-500">"By pre-accepting failure, you strip the outcome of its power to control your happiness."</p>
+                </div>
+                <p>Input your most stressful current project and what "Total Failure" looks like.</p>
+            </div>
+            <div class="ai-panel">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-anchor text-sky-500"></i> Reframing Engine
+                </h3>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">The Stressor</label>
+                <input id="reframing-stressor" type="text" class="w-full p-3 rounded-lg border border-slate-300 mb-4 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g., Launching the new app" />
+
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">The Fear (Total Failure)</label>
+                <textarea id="reframing-fear" class="w-full p-3 rounded-lg border border-slate-300 mb-4 h-24 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="e.g., We get zero users and lose the investment."></textarea>
+
+                <button onclick="runReframing()" id="reframing-btn" class="btn-primary w-full justify-center">
+                    Generate Even-If Statement
+                </button>
+                <div id="reframing-result" class="mt-6 p-4 bg-white rounded-lg border border-slate-200 hidden ai-result italic font-medium"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide" id="slide-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-12 h-full items-center">
+            <div>
+                <h2 class="text-4xl font-bold mb-6 border-l-8 border-sky-400 pl-6">3. The 15-Minute "Nothing"</h2>
+                <p class="text-lg text-slate-600 mb-6">
+                    Physically training the brain to stop chasing. This is the neurological equivalent of hitting 'Pause' on the treadmill.
+                </p>
+                <div class="p-6 bg-slate-100 rounded-xl border border-slate-200">
+                    <h4 class="font-bold mb-2">How it works:</h4>
+                    <ul class="space-y-2 text-sm text-slate-600">
+                        <li>• Set a timer for 15 minutes. No phone. No book.</li>
+                        <li>• Observe the "brain screams" for dopamine.</li>
+                        <li>• Record those screams here to understand your patterns.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="ai-panel">
+                <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-brain text-sky-500"></i> Metacognition Guide
+                </h3>
+                <textarea id="meta-input" class="w-full p-4 rounded-lg border border-slate-300 mb-4 h-32 focus:ring-2 focus:ring-sky-500 outline-none" placeholder="What did your brain 'scream' for? (Checking email, fidgeting, solving a problem, planning tomorrow...)"></textarea>
+                <button onclick="runMetaGuide()" id="meta-btn" class="btn-primary w-full justify-center">
+                    Analyze My Treadmill
+                </button>
+                <div id="meta-result" class="mt-6 p-4 bg-white rounded-lg border border-slate-200 hidden ai-result text-sm"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="slide bg-slate-900 text-white" id="slide-6">
+        <div class="m-auto text-center max-w-3xl">
+            <h2 class="text-5xl font-bold mb-8">Character Over Outcomes</h2>
+            <p class="text-xl text-slate-400 mb-12">
+                The satisfaction equation is not a math problem to solve, but a mental environment to manage. By lowering the denominator, you achieve a level of peace that more "having" could never provide.
+            </p>
+            <div class="flex justify-center gap-8">
+                <div class="text-center">
+                    <div class="text-sky-400 text-3xl font-bold">Audit</div>
+                    <div class="text-xs uppercase tracking-widest mt-1">Daily</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-sky-400 text-3xl font-bold">Reframe</div>
+                    <div class="text-xs uppercase tracking-widest mt-1">Stressors</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-sky-400 text-3xl font-bold">Observe</div>
+                    <div class="text-xs uppercase tracking-widest mt-1">Cravings</div>
+                </div>
+            </div>
+            <button onclick="goToSlide(1)" class="mt-16 text-slate-500 hover:text-white transition-colors">
+                <i class="fa-solid fa-rotate-left mr-2"></i> Restart Workshop
+            </button>
+        </div>
+    </section>
+
+    <div class="nav-controls">
+        <div class="nav-btn" onclick="prevSlide()"><i class="fa-solid fa-chevron-left"></i></div>
+        <div class="nav-btn" onclick="nextSlide()"><i class="fa-solid fa-chevron-right"></i></div>
+    </div>
+
+    <script>
+        const totalSlides = 6;
+        let currentSlide = 1;
+
+        function updateProgress() {
+            const percent = ((currentSlide - 1) / (totalSlides - 1)) * 100;
+            document.getElementById('progress').style.width = percent + '%';
+        }
+
+        function goToSlide(n) {
+            document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+            const next = document.getElementById(`slide-${n}`);
+            if (next) {
+                next.classList.add('active');
+                currentSlide = n;
+                updateProgress();
+            }
+        }
+
+        function nextSlide() { if (currentSlide < totalSlides) goToSlide(currentSlide + 1); }
+        function prevSlide() { if (currentSlide > 1) goToSlide(currentSlide - 1); }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextSlide();
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prevSlide();
+        });
+
+        const STORAGE_KEY = 'idolAuditGeminiKey';
+        const apiKeyInput = document.getElementById('api-key-input');
+        const saveKeyBtn = document.getElementById('save-key-btn');
+
+        function getStoredKey() {
+            return localStorage.getItem(STORAGE_KEY) || '';
+        }
+
+        function saveKey() {
+            const key = apiKeyInput.value.trim();
+            if (!key) {
+                localStorage.removeItem(STORAGE_KEY);
+                alert('Please enter a Gemini API key or leave it blank to re-enter later.');
+                return;
+            }
+            localStorage.setItem(STORAGE_KEY, key);
+            alert('API key saved for this browser.');
+        }
+
+        function setApiKeyInputValue() {
+            apiKeyInput.value = getStoredKey();
+        }
+
+        saveKeyBtn.addEventListener('click', saveKey);
+        setApiKeyInputValue();
+
+        async function callGemini(prompt, systemInstruction) {
+            const apiKey = getStoredKey();
+            if (!apiKey) {
+                throw new Error('Missing Gemini API key. Add one in the top-right input box and save it.');
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+            };
+
+            let delay = 1000;
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(errorText || 'API Error');
+                    }
+
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response was returned.';
+                } catch (e) {
+                    if (i === 4) throw e;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        function toggleLoading(btnId, isLoading) {
+            const btn = document.getElementById(btnId);
+            if (isLoading) {
+                btn.disabled = true;
+                btn.innerHTML = `<div class="loading-spinner"></div> Processing...`;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = btnId === 'audit-btn' ? 'Analyze Goal' :
+                    btnId === 'reframing-btn' ? 'Generate Even-If Statement' :
+                    'Analyze My Treadmill';
+            }
+        }
+
+        async function runAudit() {
+            const input = document.getElementById('audit-input').value.trim();
+            const resultDiv = document.getElementById('audit-result');
+            if (!input) return;
+
+            toggleLoading('audit-btn', true);
+            const system = "You are the 'Audit Assistant' helping a high-achiever identify 'False Idols'. Analyze their goal using the 'Invisible Question': If no one ever found out, would they still want it? Be provocative but helpful. Determine if it's Intrinsic or Extrinsic. Provide 2-3 specific questions for them to ponder.";
+
+            try {
+                const res = await callGemini(input, system);
+                resultDiv.innerText = res;
+                resultDiv.classList.remove('hidden');
+            } catch (e) {
+                resultDiv.innerText = e.message || 'Error connecting to the AI. Please try again.';
+                resultDiv.classList.remove('hidden');
+            } finally {
+                toggleLoading('audit-btn', false);
+            }
+        }
+
+        async function runReframing() {
+            const stressor = document.getElementById('reframing-stressor').value.trim();
+            const fear = document.getElementById('reframing-fear').value.trim();
+            const resultDiv = document.getElementById('reframing-result');
+            if (!stressor || !fear) return;
+
+            toggleLoading('reframing-btn', true);
+            const system = "You are the 'Reframing Engine'. Your goal is to help users create 'Even-If' statements to detach their happiness from outcomes. Take their stressor and failure fear and draft a powerful statement that anchors their success in character (integrity, health, mentorship, resilience) rather than results.";
+
+            try {
+                const prompt = `Stressor: ${stressor}. Fear of Failure: ${fear}. Generate 2 variants of an Even-If statement.`;
+                const res = await callGemini(prompt, system);
+                resultDiv.innerText = res;
+                resultDiv.classList.remove('hidden');
+            } catch (e) {
+                resultDiv.innerText = e.message || 'Error. Please check your connection.';
+                resultDiv.classList.remove('hidden');
+            } finally {
+                toggleLoading('reframing-btn', false);
+            }
+        }
+
+        async function runMetaGuide() {
+            const input = document.getElementById('meta-input').value.trim();
+            const resultDiv = document.getElementById('meta-result');
+            if (!input) return;
+
+            toggleLoading('meta-btn', true);
+            const system = "You are a 'Metacognition Guide'. Analyze the user's observations of their own 'brain screams' during 15 minutes of silence. Identify patterns of dopamine-seeking, control-needs, or anxiety. Provide a 'scientist-like' perspective that helps them see the craving as a biological event rather than a command to follow.";
+
+            try {
+                const res = await callGemini(input, system);
+                resultDiv.innerText = res;
+                resultDiv.classList.remove('hidden');
+            } catch (e) {
+                resultDiv.innerText = e.message || 'Connection lost. Try again.';
+                resultDiv.classList.remove('hidden');
+            } finally {
+                toggleLoading('meta-btn', false);
+            }
+        }
+    </script>
+</body>
+</html>
